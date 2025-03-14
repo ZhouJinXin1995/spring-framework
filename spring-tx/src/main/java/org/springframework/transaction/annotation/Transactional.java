@@ -115,6 +115,7 @@ public @interface Transactional {
 	 * @see org.springframework.transaction.interceptor.TransactionAttribute#getIsolationLevel()
 	 * @see org.springframework.transaction.support.AbstractPlatformTransactionManager#setValidateExistingTransaction
 	 */
+	// 事务隔离级别
 	Isolation isolation() default Isolation.DEFAULT;
 
 	/**
@@ -126,6 +127,7 @@ public @interface Transactional {
 	 * @return the timeout in seconds
 	 * @see org.springframework.transaction.interceptor.TransactionAttribute#getTimeout()
 	 */
+	// 超时
 	int timeout() default TransactionDefinition.TIMEOUT_DEFAULT;
 
 	/**
@@ -152,6 +154,7 @@ public @interface Transactional {
 	 * @see org.springframework.transaction.interceptor.TransactionAttribute#isReadOnly()
 	 * @see org.springframework.transaction.support.TransactionSynchronizationManager#isCurrentTransactionReadOnly()
 	 */
+	// 只读
 	boolean readOnly() default false;
 
 	/**

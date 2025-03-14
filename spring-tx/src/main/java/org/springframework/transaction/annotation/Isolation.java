@@ -44,6 +44,7 @@ public enum Isolation {
 	 * transaction will have retrieved an invalid row.
 	 * @see java.sql.Connection#TRANSACTION_READ_UNCOMMITTED
 	 */
+	// 读未提交
 	READ_UNCOMMITTED(TransactionDefinition.ISOLATION_READ_UNCOMMITTED),
 
 	/**
@@ -52,6 +53,7 @@ public enum Isolation {
 	 * from reading a row with uncommitted changes in it.
 	 * @see java.sql.Connection#TRANSACTION_READ_COMMITTED
 	 */
+	// 读已提交
 	READ_COMMITTED(TransactionDefinition.ISOLATION_READ_COMMITTED),
 
 	/**
@@ -63,6 +65,7 @@ public enum Isolation {
 	 * different values the second time (a "non-repeatable read").
 	 * @see java.sql.Connection#TRANSACTION_REPEATABLE_READ
 	 */
+	// 可重复读
 	REPEATABLE_READ(TransactionDefinition.ISOLATION_REPEATABLE_READ),
 
 	/**
@@ -75,6 +78,7 @@ public enum Isolation {
 	 * same condition, retrieving the additional "phantom" row in the second read.
 	 * @see java.sql.Connection#TRANSACTION_SERIALIZABLE
 	 */
+	// 串行化
 	SERIALIZABLE(TransactionDefinition.ISOLATION_SERIALIZABLE);
 
 

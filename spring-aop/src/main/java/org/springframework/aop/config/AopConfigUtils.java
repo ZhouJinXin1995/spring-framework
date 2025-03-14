@@ -58,8 +58,10 @@ public abstract class AopConfigUtils {
 
 	static {
 		// Set up the escalation list...
+		// 事务使用
 		APC_PRIORITY_LIST.add(InfrastructureAdvisorAutoProxyCreator.class);
 		APC_PRIORITY_LIST.add(AspectJAwareAdvisorAutoProxyCreator.class);
+		// apo使用
 		APC_PRIORITY_LIST.add(AnnotationAwareAspectJAutoProxyCreator.class);
 	}
 
@@ -120,15 +122,19 @@ public abstract class AopConfigUtils {
 
 		Assert.notNull(registry, "BeanDefinitionRegistry must not be null");
 
+		// 如果有注册，则判断优先级，将优先级的高的保存
+		// 如果已经纯在了自动代理创建器，且存在的自动代理创建器与现在的并不一致，那么需要根据优先级来判断到底要使用哪个
 		if (registry.containsBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME)) {
 			BeanDefinition apcDefinition = registry.getBeanDefinition(AUTO_PROXY_CREATOR_BEAN_NAME);
 			if (!cls.getName().equals(apcDefinition.getBeanClassName())) {
 				int currentPriority = findPriorityForClass(apcDefinition.getBeanClassName());
 				int requiredPriority = findPriorityForClass(cls);
 				if (currentPriority < requiredPriority) {
+					// 改变bean所对应的className 属性
 					apcDefinition.setBeanClassName(cls.getName());
 				}
 			}
+			// 如果已经存在自动代理创建器，并且与将要创建的一致，那么无需再次创建
 			return null;
 		}
 
@@ -140,10 +146,11 @@ public abstract class AopConfigUtils {
 		return beanDefinition;
 	}
 
+
 	private static int findPriorityForClass(Class<?> clazz) {
 		return APC_PRIORITY_LIST.indexOf(clazz);
 	}
-
+	// 可以看到，所谓的优先级顺序实际上是在 APC_PRIORITY_LIST 集合的顺序
 	private static int findPriorityForClass(@Nullable String className) {
 		for (int i = 0; i < APC_PRIORITY_LIST.size(); i++) {
 			Class<?> clazz = APC_PRIORITY_LIST.get(i);
