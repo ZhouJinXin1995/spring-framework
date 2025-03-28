@@ -875,6 +875,7 @@ public abstract class FrameworkServlet extends HttpServletBean implements Applic
 	protected void service(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 
+		// 解析请求方式
 		HttpMethod httpMethod = HttpMethod.resolve(request.getMethod());
 		if (httpMethod == HttpMethod.PATCH || httpMethod == null) {
 			processRequest(request, response);
@@ -988,13 +989,19 @@ public abstract class FrameworkServlet extends HttpServletBean implements Applic
 	protected final void processRequest(HttpServletRequest request, HttpServletResponse response)
 			throws ServletException, IOException {
 
+		// 记录当前时间，用于记录web请求的记录时间
 		long startTime = System.currentTimeMillis();
 		Throwable failureCause = null;
 
+		// 1234 的目的是为了保证当前线程的 LocaleContext 和 RequestAttributes 在当前请求后还能恢复，所以提取保存
+		// 1. 提取当前线程的 LocaleContext  属性
 		LocaleContext previousLocaleContext = LocaleContextHolder.getLocaleContext();
+		// 2. 根据当前的request 创建对应的 LocaleContext ,并绑定到当前线程
 		LocaleContext localeContext = buildLocaleContext(request);
 
+		// 3. 提取当前线程的 RequestAttributes 属性
 		RequestAttributes previousAttributes = RequestContextHolder.getRequestAttributes();
+		// 4. 根据当前的request 创建对应的 RequestAttributes ,并绑定到当前线程
 		ServletRequestAttributes requestAttributes = buildRequestAttributes(request, response, previousAttributes);
 
 		WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);
@@ -1003,6 +1010,7 @@ public abstract class FrameworkServlet extends HttpServletBean implements Applic
 		initContextHolders(request, localeContext, requestAttributes);
 
 		try {
+			// todo 5. 委托给 doservice方法进行进一步处理
 			doService(request, response);
 		}
 		catch (ServletException | IOException ex) {
@@ -1015,11 +1023,13 @@ public abstract class FrameworkServlet extends HttpServletBean implements Applic
 		}
 
 		finally {
+			// 6. 请求结束，恢复线程原状
 			resetContextHolders(request, previousLocaleContext, previousAttributes);
 			if (requestAttributes != null) {
 				requestAttributes.requestCompleted();
 			}
 			logResult(request, response, failureCause, asyncManager);
+			// 发布请求结束的通知事件，无论成功与否
 			publishRequestHandledEvent(request, response, startTime, failureCause);
 		}
 	}

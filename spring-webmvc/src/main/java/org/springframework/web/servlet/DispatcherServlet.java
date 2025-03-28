@@ -1018,11 +1018,15 @@ public class DispatcherServlet extends FrameworkServlet {
 	 * @param response current HTTP response
 	 * @throws Exception in case of any kind of processing failure
 	 */
+	// SpringMVC处理请求的核心流程
 	protected void doDispatch(HttpServletRequest request, HttpServletResponse response) throws Exception {
 		HttpServletRequest processedRequest = request;
+		// handler (目标方法)的执行链
 		HandlerExecutionChain mappedHandler = null;
+		// 文件上传标志
 		boolean multipartRequestParsed = false;
 
+		// 对异步请求的支持（Servlet3.0 以后才有的，Webflux）
 		WebAsyncManager asyncManager = WebAsyncUtils.getAsyncManager(request);
 
 		try {
@@ -1030,44 +1034,62 @@ public class DispatcherServlet extends FrameworkServlet {
 			Exception dispatchException = null;
 
 			try {
+				// 1. 如果是 MultipartContent 类型的request 则转换request 为 MultipartHttpServletRequest 类型的request
+				// 检查  当前是否文件上传的请求
 				processedRequest = checkMultipart(request);
 				multipartRequestParsed = (processedRequest != request);
 
 				// Determine handler for the current request.
+				// 2. 根据request 寻找对应的 handler
+				// todo 构造出了【目标方法+拦截器整个链路】  决定使用哪个Handler处理当前请求
 				mappedHandler = getHandler(processedRequest);
 				if (mappedHandler == null) {
+					// 3. 如果没有找到对应的handler，则通过 response 反馈错误信息
+					// 如果找不到处理，就报404错误
 					noHandlerFound(processedRequest, response);
 					return;
 				}
 
 				// Determine handler adapter for the current request.
+				// 3. 如果没有找到对应的handler，则通过 response 反馈错误信息
+				// 如果找不到处理，就报404错误
 				HandlerAdapter ha = getHandlerAdapter(mappedHandler.getHandler());
 
 				// Process last-modified header, if supported by the handler.
+				// 5. last-modified 的缓存处理
+				// 如果当前handler 支持 last-modified 头处理则进行缓存处理
 				String method = request.getMethod();
 				boolean isGet = "GET".equals(method);
+				// 如果是 get请求或者 head 请求则进入该分支
 				if (isGet || "HEAD".equals(method)) {
+					// todo 调用 HandlerAdapter#getLastModified 方法 来获取最后修改时间
 					long lastModified = ha.getLastModified(request, mappedHandler.getHandler());
+					// todo 判断到目前为止是否有过修改，没有则直接return。实现缓存的功能
 					if (new ServletWebRequest(request, response).checkNotModified(lastModified) && isGet) {
 						return;
 					}
 				}
 
+				// 6.1 执行 所有拦截器 的preHandle 方法，使用mappedHandler整个链
 				if (!mappedHandler.applyPreHandle(processedRequest, response)) {
 					return;
 				}
 
 				// Actually invoke the handler.
+				// todo 7. 真正执行目标方法，mappedHandler.getHandler() 并 返回视图
+				// 反射执行目标方法，确定参数值，处理返回值【封装成ModelAndView】
 				mv = ha.handle(processedRequest, response, mappedHandler.getHandler());
 
 				if (asyncManager.isConcurrentHandlingStarted()) {
 					return;
 				}
-
+				// // 8. 视图名称转换应用于需要添加前缀的情况 默认的ViewName
 				applyDefaultViewName(processedRequest, mv);
+				// 6.2 执行 所有拦截器 的postHandle 方法，使用mappedHandler整个链
 				mappedHandler.applyPostHandle(processedRequest, response, mv);
 			}
 			catch (Exception ex) {
+				// 记录下来异常，在 9 中统一处理
 				dispatchException = ex;
 			}
 			catch (Throwable err) {
@@ -1075,12 +1097,15 @@ public class DispatcherServlet extends FrameworkServlet {
 				// making them available for @ExceptionHandler methods and other scenarios.
 				dispatchException = new NestedServletException("Handler dispatch failed", err);
 			}
+			// todo 9. 处理最后的结果
 			processDispatchResult(processedRequest, response, mappedHandler, mv, dispatchException);
 		}
 		catch (Exception ex) {
+			// // 6.3 拦截器完成方法的调用 下面的即使执行完了，异常还是抛出去
 			triggerAfterCompletion(processedRequest, response, mappedHandler, ex);
 		}
 		catch (Throwable err) {
+			// 6.3 拦截器完成方法的调用
 			triggerAfterCompletion(processedRequest, response, mappedHandler,
 					new NestedServletException("Handler processing failed", err));
 		}
@@ -1184,6 +1209,7 @@ public class DispatcherServlet extends FrameworkServlet {
 	 * @see MultipartResolver#resolveMultipart
 	 */
 	protected HttpServletRequest checkMultipart(HttpServletRequest request) throws MultipartException {
+		// multipartResolver 文件上传解析器 isMultipart方法
 		if (this.multipartResolver != null && this.multipartResolver.isMultipart(request)) {
 			if (WebUtils.getNativeRequest(request, MultipartHttpServletRequest.class) != null) {
 				if (request.getDispatcherType().equals(DispatcherType.REQUEST)) {
@@ -1250,7 +1276,9 @@ public class DispatcherServlet extends FrameworkServlet {
 	 */
 	@Nullable
 	protected HandlerExecutionChain getHandler(HttpServletRequest request) throws Exception {
+		// 这里的 this.handlerMappings 在没有手动调整的情况下是加载的默认配置文件中的数据
 		if (this.handlerMappings != null) {
+			// 遍历每一个 handleMapping，解析 request，直到碰到一个解析成功的，将解析后的 Handler拦截链路返回。
 			for (HandlerMapping mapping : this.handlerMappings) {
 				HandlerExecutionChain handler = mapping.getHandler(request);
 				if (handler != null) {
@@ -1271,11 +1299,13 @@ public class DispatcherServlet extends FrameworkServlet {
 		if (pageNotFoundLogger.isWarnEnabled()) {
 			pageNotFoundLogger.warn("No mapping for " + request.getMethod() + " " + getRequestUri(request));
 		}
+		// 判断DispatcherServlet 属性设置，是否需要抛出异常
 		if (this.throwExceptionIfNoHandlerFound) {
 			throw new NoHandlerFoundException(request.getMethod(), getRequestUri(request),
 					new ServletServerHttpRequest(request).getHeaders());
 		}
 		else {
+			// 否则直接抛出错误 404
 			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 		}
 	}
@@ -1287,7 +1317,9 @@ public class DispatcherServlet extends FrameworkServlet {
 	 */
 	protected HandlerAdapter getHandlerAdapter(Object handler) throws ServletException {
 		if (this.handlerAdapters != null) {
+			// 遍历所有的 Adapter
 			for (HandlerAdapter adapter : this.handlerAdapters) {
+				// 判断是否支持当前Handler 的解析
 				if (adapter.supports(handler)) {
 					return adapter;
 				}
